@@ -1,0 +1,5 @@
+# CI 构建时 checkout 的固件源码
+/src/
+
+# 本地构建产物
+/dist/

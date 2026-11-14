@@ -1,0 +1,267 @@
+name: Build firmware
+
+run-name: Build ${{ inputs.machine }}
+
+# 只支持手动触发：在下拉框里选一个机型，点 Run workflow，只编译这一个机型。
+# 没选中的机型不会被编译；需要别的机型就再运行一次。
+on:
+  workflow_dispatch:
+    inputs:
+      source_repo:
+        description: "固件仓库（owner/name）"
+        required: true
+        type: string
+        default: lswymxk/RTLPlayground
+      source_ref:
+        description: "分支 / 标签 / commit SHA"
+        required: true
+        type: string
+        default: main
+      machine:
+        description: "选择要编译的机型（对应源码 machine/<名字>.h）"
+        required: true
+        type: choice
+        default: KEEPLINK_KP_9000_6XHML_X2
+        # 下面 59 个机型来自当前 lswymxk/RTLPlayground@main 的 machine/*.h。
+        # 上游新增机型时在这里追加一行，或选 OTHER 用 custom_machine 临时编译。
+        options:
+          - DAVUAZ_DA_K6501W
+          - DEFAULT_8C_1SFP
+          - FOXNEO_FNS_1200P
+          - GOALAKE_IG108
+          - GOODTOP_GT_ST018M
+          - GOODTOP_GT_ST024M
+          - GUANGNIANWEI_7018_2_5G
+          - HASIVO_S1100P_8GT_1SX_S
+          - HASIVO_S1100WP_8GT_1SX_SE
+          - HASIVO_S600W_4GT_2XGT_SE
+          - HISOURCE_HI_K0402WS_PCB_K0402W_V2_0
+          - HISOURCE_HI_K0402WS_PCB_K0402W_V3_0
+          - HISOURCE_HI_K0801WS
+          - HONGYAVISION_HYWS_SGT0204S
+          - HORACO_HC_SWTG124AS
+          - HORACO_ZX310S_4T2XH
+          - HORACO_ZX310S_4T2XT
+          - HORACO_ZX_SG4T2
+          - KEEPLINK_KP_9000_6XHML_V1_1
+          - KEEPLINK_KP_9000_6XHML_V1_2
+          - KEEPLINK_KP_9000_6XHML_V2_1
+          - KEEPLINK_KP_9000_6XHML_X2
+          - KEEPLINK_KP_9000_6XH_V1_1
+          - KEEPLINK_KP_9000_6XH_V1_2
+          - KEEPLINK_KP_9000_6XH_X
+          - KEEPLINK_KP_9000_6XH_X2
+          - KEEPLINK_KP_9000_6XH_X2_V2_1
+          - KEEPLINK_KP_9000_9XHML_X_V2_2
+          - KEEPLINK_KP_9000_9XHML_X_V3_1
+          - KEEPLINK_KP_9000_9XHML_X_V3_2
+          - KEEPLINK_KP_9000_9XH_X_EU
+          - LIANGUO_HYWS_SGT0108S
+          - LIANGUO_ZX_SWTGW215AS
+          - MOKERLINK_2G040210GSM
+          - MOKERLINK_2G08110GSN
+          - MOKERLINK_POE_2G080110GS
+          - MOKERLINK_ZX_SWTGW218AS
+          - ONT_S207CW_62TS_SE
+          - PCB_SWTG018AS_V2_1_0
+          - PCB_SWTG024AS_A_2_0_1
+          - PCB_SWTG024AS_V2_1_0
+          - REALHD_PSW8_25MG
+          - RUIYING_RY_4GT_2SX
+          - RUIYING_RY_8GT_1SX
+          - SIRIVISION_S25G2206FP_V1_1
+          - SIRIVISION_SR_S25G2109F
+          - SODOLA_SL_SWTGW215AS_D
+          - STEAMEMO_IG204_V1
+          - SWGT024_V2_0_MANAGED
+          - SWGT024_V2_0_UNMANAGED
+          - SWTG018AS_A_V_2_0
+          - SWTG024AS_A_V2_0_1_5C_1SFP
+          - SWTG024AS_V2_0
+          - TRENDNET_TEG_S562
+          - XIKESTOR_SKS3200_8E1X
+          - YUANLEY_YS25_0402M
+          - YUANLEY_YS25_0402_PCB_K0402W_V1_0
+          - ZOERAX_HG0402XG
+          - ZOERAX_HG0402XG_V1_1
+          - OTHER
+      custom_machine:
+        description: "仅当上面选 OTHER 时使用：填写 machine/<名字>.h（一般留空）"
+        required: false
+        type: string
+        default: ""
+      config_file:
+        description: "自定义启动配置文件；留空则自动用 configs/<机型>.txt，再否则用源码 config.txt"
+        required: false
+        type: string
+        default: ""
+      build_oem:
+        description: "同时构建 OEM 网页升级包"
+        required: false
+        type: boolean
+        default: true
+      release_tag:
+        description: "发布到 Release 的标签，例如 v0.1.0；留空则只上传 Artifact"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rtlplayground-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ inputs.machine }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v6
+
+      - name: Checkout firmware source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.source_repo }}
+          ref: ${{ inputs.source_ref }}
+          path: src
+
+      # 提前校验机型，避免等 SDCC 编译完才发现名字写错
+      - name: Resolve machine
+        id: resolve
+        env:
+          IN_MACHINE: ${{ inputs.machine }}
+          IN_CUSTOM_MACHINE: ${{ inputs.custom_machine }}
+        run: |
+          set -euo pipefail
+          machine="$IN_MACHINE"
+          if [ "$machine" = "OTHER" ]; then
+            machine="$IN_CUSTOM_MACHINE"
+          fi
+          if [ -z "$machine" ]; then
+            echo "选择了 OTHER，但 custom_machine 为空" >&2
+            exit 1
+          fi
+          if ! [[ "$machine" =~ ^[A-Za-z0-9_]+$ ]]; then
+            echo "非法机型名：$machine（只允许字母、数字、下划线）" >&2
+            exit 1
+          fi
+          if [ ! -f "src/machine/$machine.h" ] || [ ! -f "src/machine/$machine.c" ]; then
+            echo "源码里没有机型：$machine" >&2
+            echo "可用机型：" >&2
+            for header in src/machine/*.h; do
+              name="$(basename "$header" .h)"
+              case "$name" in
+                machine_defs|machine_init_defs|default_machine) continue ;;
+              esac
+              if [ -f "src/machine/$name.c" ]; then
+                echo "  $name" >&2
+              fi
+            done
+            exit 1
+          fi
+          echo "machine=$machine" >> "$GITHUB_OUTPUT"
+          echo "本次只编译：\`$machine\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            make gcc g++ bison flex libboost-dev patch bzip2 curl \
+            ca-certificates xxd python3 libjson-c-dev zlib1g-dev
+
+      - name: Cache patched SDCC toolchain
+        uses: actions/cache@v4
+        with:
+          path: src/toolchain
+          key: sdcc-${{ runner.os }}-${{ hashFiles('src/sdcc/*') }}-v1
+
+      # 如果上一次构建在编译 SDCC 时中断，缓存可能是不完整的；
+      # 直接删掉让 make 重新构建，避免诡异的链接错误。
+      - name: Verify cached SDCC
+        run: |
+          set -euo pipefail
+          if compgen -G "src/toolchain/sdcc-*/bin/sdcc" > /dev/null; then
+            echo "SDCC 工具链已就绪"
+          else
+            echo "缓存中没有完整的 SDCC 工具链，清理后重新编译"
+            rm -rf src/toolchain
+          fi
+
+      - name: Build firmware
+        env:
+          MACHINE: ${{ steps.resolve.outputs.machine }}
+          IN_CONFIG_FILE: ${{ inputs.config_file }}
+          IN_BUILD_OEM: ${{ inputs.build_oem }}
+          IN_SOURCE_REPO: ${{ inputs.source_repo }}
+          IN_SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          oem=0
+          if [ "$IN_BUILD_OEM" = "true" ]; then oem=1; fi
+          MACHINES="$MACHINE" \
+          CONFIG_FILE="$IN_CONFIG_FILE" \
+          OEM="$oem" \
+          SOURCE_REPO="$IN_SOURCE_REPO" \
+          SOURCE_REF="$IN_SOURCE_REF" \
+          SRC_DIR=src DIST_DIR=dist CONFIG_DIR=configs \
+          bash scripts/build.sh
+
+      - name: Write job summary
+        if: always()
+        env:
+          MACHINE: ${{ steps.resolve.outputs.machine || inputs.machine }}
+          IN_CONFIG_FILE: ${{ inputs.config_file }}
+          IN_SOURCE_REPO: ${{ inputs.source_repo }}
+          IN_SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          {
+            echo "## RTLPlayground 固件构建"
+            echo ""
+            echo "| 项目 | 值 |"
+            echo "| --- | --- |"
+            echo "| 源码 | \`${IN_SOURCE_REPO}\` @ \`${IN_SOURCE_REF}\` |"
+            echo "| 机型 | \`${MACHINE}\` |"
+            echo "| 启动配置 | ${IN_CONFIG_FILE:-自动匹配 configs/${MACHINE}.txt 或源码 config.txt} |"
+            echo ""
+            if [ -f dist/build-info.txt ]; then
+              echo '```'
+              cat dist/build-info.txt
+              echo '```'
+            else
+              echo "构建没有产生产物，请查看上面的日志。"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload firmware artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rtlplayground-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish GitHub release
+        if: success() && inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag }}
+          MACHINE: ${{ steps.resolve.outputs.machine }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo "release_tag 只能包含字母、数字、点、下划线、短横线和斜杠：$TAG" >&2
+            exit 1
+          fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* \
+              --title "RTLPlayground $TAG ($MACHINE)" \
+              --notes-file dist/build-info.txt
+          fi
