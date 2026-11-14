@@ -11,7 +11,7 @@ configs/<MACHINE>.txt
 `<MACHINE>` 必须和 `machine/<MACHINE>.h` 的文件名完全一致（区分大小写），例如：
 
 ```
-configs/KEEPLINK_KP_9000_6XHML_X2.txt
+configs/KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1.txt
 ```
 
 编译时按以下顺序选择配置：
@@ -37,7 +37,7 @@ configs/KEEPLINK_KP_9000_6XHML_X2.txt
 | `igmp on\|off` | IGMP 组播 | `igmp on` |
 | `session <秒>` | Web 会话超时 | `session 3600` |
 
-完整示例见 [`KEEPLINK_KP_9000_6XHML_X2.txt`](KEEPLINK_KP_9000_6XHML_X2.txt)。
+完整示例见 [`KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1.txt`](KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1.txt)。
 
 ## 注意
 

@@ -11,7 +11,7 @@ on:
         description: "固件仓库（owner/name）"
         required: true
         type: string
-        default: lswymxk/RTLPlayground
+        default: logicog/RTLPlayground
       source_ref:
         description: "分支 / 标签 / commit SHA"
         required: true
@@ -21,14 +21,18 @@ on:
         description: "选择要编译的机型（对应源码 machine/<名字>.h）"
         required: true
         type: choice
-        default: KEEPLINK_KP_9000_6XHML_X2
-        # 下面 59 个机型来自当前 lswymxk/RTLPlayground@main 的 machine/*.h。
+        default: KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1
+        # 下面 65 个机型来自当前 logicog/RTLPlayground@main 的 machine/*.h。
         # 上游新增机型时在这里追加一行，或选 OTHER 用 custom_machine 临时编译。
         options:
+          - AMPCOM_WAM902_SWTG018AS
+          - BINARDAT_2G06_04210GSM
           - DAVUAZ_DA_K6501W
           - DEFAULT_8C_1SFP
+          - DOTX_DX_1009N
           - FOXNEO_FNS_1200P
           - GOALAKE_IG108
+          - GOALAKE_IG204
           - GOODTOP_GT_ST018M
           - GOODTOP_GT_ST024M
           - GUANGNIANWEI_7018_2_5G
@@ -40,30 +44,30 @@ on:
           - HISOURCE_HI_K0801WS
           - HONGYAVISION_HYWS_SGT0204S
           - HORACO_HC_SWTG124AS
+          - HORACO_HC_SWTG218AS
+          - HORACO_HC_SWTGW218AS
+          - HORACO_ZX_SG4T2
+          - HORACO_ZX_SWTGW218AS
           - HORACO_ZX310S_4T2XH
           - HORACO_ZX310S_4T2XT
-          - HORACO_ZX_SG4T2
-          - KEEPLINK_KP_9000_6XHML_V1_1
-          - KEEPLINK_KP_9000_6XHML_V1_2
-          - KEEPLINK_KP_9000_6XHML_V2_1
-          - KEEPLINK_KP_9000_6XHML_X2
-          - KEEPLINK_KP_9000_6XH_V1_1
-          - KEEPLINK_KP_9000_6XH_V1_2
           - KEEPLINK_KP_9000_6XH_X
-          - KEEPLINK_KP_9000_6XH_X2
-          - KEEPLINK_KP_9000_6XH_X2_V2_1
-          - KEEPLINK_KP_9000_9XHML_X_V2_2
-          - KEEPLINK_KP_9000_9XHML_X_V3_1
-          - KEEPLINK_KP_9000_9XHML_X_V3_2
+          - KEEPLINK_KP_9000_6XH_X2_2M_PCB43_V1_1
+          - KEEPLINK_KP_9000_6XH_X2_2M_PCB43_V1_2
+          - KEEPLINK_KP_9000_6XH_X2_2M_PCB43_V2_1
+          - KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1
+          - KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_2
+          - KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V2_1
           - KEEPLINK_KP_9000_9XH_X_EU
+          - KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V2_2
+          - KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_1
+          - KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_2
+          - KEEPLINK_KP_9000_9XHPML_X
           - LIANGUO_HYWS_SGT0108S
           - LIANGUO_ZX_SWTGW215AS
           - MOKERLINK_2G040210GSM
           - MOKERLINK_2G08110GSN
           - MOKERLINK_POE_2G080110GS
           - MOKERLINK_ZX_SWTGW218AS
-          - ONT_S207CW_62TS_SE
-          - PCB_SWTG018AS_V2_1_0
           - PCB_SWTG024AS_A_2_0_1
           - PCB_SWTG024AS_V2_1_0
           - REALHD_PSW8_25MG
@@ -72,18 +76,20 @@ on:
           - SIRIVISION_S25G2206FP_V1_1
           - SIRIVISION_SR_S25G2109F
           - SODOLA_SL_SWTGW215AS_D
+          - SODOLA_SL902_SWTGW124AS
+          - SODOLA_SL902_SWTGW215AS
           - STEAMEMO_IG204_V1
           - SWGT024_V2_0_MANAGED
           - SWGT024_V2_0_UNMANAGED
-          - SWTG018AS_A_V_2_0
+          - SWTG018AS_A_V2_0
           - SWTG024AS_A_V2_0_1_5C_1SFP
           - SWTG024AS_V2_0
           - TRENDNET_TEG_S562
           - XIKESTOR_SKS3200_8E1X
+          - XIKESTOR_SKS3200M_8GPY1XF
+          - YUANLEY_YS25_0402
           - YUANLEY_YS25_0402M
-          - YUANLEY_YS25_0402_PCB_K0402W_V1_0
           - ZOERAX_HG0402XG
-          - ZOERAX_HG0402XG_V1_1
           - OTHER
       custom_machine:
         description: "仅当上面选 OTHER 时使用：填写 machine/<名字>.h（一般留空）"
@@ -171,7 +177,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            make gcc g++ bison flex libboost-dev patch bzip2 curl \
+            make gcc g++ pkg-config bison flex libboost-dev patch bzip2 curl \
             ca-certificates xxd python3 libjson-c-dev zlib1g-dev
 
       - name: Cache patched SDCC toolchain

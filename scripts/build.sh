@@ -3,7 +3,7 @@
 # RTLPlayground 固件编译脚本（GitHub Actions / 本地 Docker 通用）
 #
 # 用法：
-#   MACHINES="KEEPLINK_KP_9000_6XHML_X2" bash scripts/build.sh
+#   MACHINES="KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1" bash scripts/build.sh
 #   MACHINES="A B" CONFIG_FILE=configs/my.txt bash scripts/build.sh
 #
 # 环境变量：
@@ -37,7 +37,7 @@ log()  { printf '\n==> %s\n' "$*"; }
 warn() { printf 'WARNING: %s\n' "$*" >&2; }
 die()  { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
-[ -n "${MACHINES// /}" ] || die "请设置 MACHINES，例如 MACHINES='KEEPLINK_KP_9000_6XHML_X2'"
+[ -n "${MACHINES// /}" ] || die "请设置 MACHINES，例如 MACHINES='KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1'"
 [ -d "$SRC_DIR/machine" ] || die "找不到固件源码目录 '$SRC_DIR'（其中应包含 machine/）"
 command -v make >/dev/null 2>&1 || die "缺少 make"
 command -v gcc  >/dev/null 2>&1 || die "缺少 gcc"

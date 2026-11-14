@@ -3,6 +3,7 @@ FROM debian:13-slim
 # 与固件项目 README 的 Debian 依赖保持一致（另加 git，用于生成版本号）
 RUN apt-get update && apt-get install -y --no-install-recommends \
       make \
+      pkg-config \
       gcc \
       g++ \
       bison \

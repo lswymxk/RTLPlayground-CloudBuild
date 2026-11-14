@@ -1,6 +1,6 @@
 # RTLPlayground 云编译
 
-用 GitHub Actions 给 [RTLPlayground](https://github.com/lswymxk/RTLPlayground)（RTL8372 / RTL8373 的 2.5G 交换机固件）做云端编译：
+用 GitHub Actions 给 [RTLPlayground](https://github.com/logicog/RTLPlayground)（RTL8372 / RTL8373 的 2.5G 交换机固件）做云端编译：
 
 > 在页面下拉选择**一个**机型 → 点 Run workflow → 只编译这个机型 → 下载 `.bin`。
 
@@ -86,7 +86,7 @@ git push -u origin main
 
 | 参数 | 填什么 |
 | --- | --- |
-| `source_repo` | `lswymxk/RTLPlayground`（或你自己的 fork） |
+| `source_repo` | `logicog/RTLPlayground`（或你自己的 fork） |
 | `source_ref` | `main`、分支名、tag 或 commit SHA |
 | `machine` | **必选**，下拉框里选一个机型 |
 | `custom_machine` | 一般留空；只有 `machine` 选 `OTHER` 时才填 |
@@ -106,19 +106,21 @@ git push -u origin main
 
 ## 选择机型
 
-`machine` 下拉框里的 59 个名字，对应源码 `machine/<名字>.h`（要求同名 `.c` 也存在），**区分大小写**。
+`machine` 下拉框里的 65 个名字，对应源码 `machine/<名字>.h`（要求同名 `.c` 也存在），**区分大小写**。
 
-- 设备型号与 machine 的对应关系见固件项目的 [`doc/supported_devices.md`](https://github.com/lswymxk/RTLPlayground/blob/main/doc/supported_devices.md)：
+- 设备型号与 machine 的对应关系见固件项目的 [`doc/supported_devices.md`](https://github.com/logicog/RTLPlayground/blob/main/doc/supported_devices.md)：
   先查设备型号 / PCB 版本，再找同名 machine 定义。
 - 上游新增机型后，下拉框不会自动更新：在 `.github/workflows/build.yml` 的 `options:` 里加一行即可；
   临时编译一个新机型也可以选 `OTHER`，然后在 `custom_machine` 里填名字。
+- 下拉列表是按 `logicog/RTLPlayground` 生成的；如果把 `source_repo` 换成别的 fork，机型名可能不同，
+  这种情况同样选 `OTHER` 手动填写。
 
 常见的两个例子（固件项目 CI 一直在编的）：
 
 | 机型 | 硬件 |
 | --- | --- |
-| `KEEPLINK_KP_9000_6XHML_X2` | 4 × 2.5G + 2 × SFP+ |
-| `KEEPLINK_KP_9000_9XHML_X_V3_1` | 8 × 2.5G + 1 × SFP+ |
+| `KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1` | 4 × 2.5G + 2 × SFP+ |
+| `KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_1` | 8 × 2.5G + 1 × SFP+ |
 
 ---
 
@@ -126,7 +128,7 @@ git push -u origin main
 
 编译时可以把一份启动配置嵌进固件，设备第一次启动就生效。
 
-**自动匹配**：创建 `configs/<机型>.txt`，例如 `configs/KEEPLINK_KP_9000_6XHML_X2.txt`，编译该机型时会自动使用，无需改 workflow。
+**自动匹配**：创建 `configs/<机型>.txt`，例如 `configs/KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1.txt`，编译该机型时会自动使用，无需改 workflow。
 
 **手动指定**：把 `config_file` 填成仓库里的路径（如 `configs/my-lab.txt`）。
 
@@ -181,10 +183,10 @@ Release 标题会带上机型，方便区分。这样固件就有固定下载地
 `scripts/build.sh` 本身支持一次传多个机型（CI 里只传选中的那一个）。有 Docker 的话：
 
 ```bash
-git clone --depth 1 https://github.com/lswymxk/RTLPlayground.git src
+git clone --depth 1 https://github.com/logicog/RTLPlayground.git src
 docker build -t rtlplayground-builder .
 docker run --rm -v "$PWD:/work" -w /work rtlplayground-builder \
-  env MACHINES="KEEPLINK_KP_9000_6XHML_X2" bash scripts/build.sh
+  env MACHINES="KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1" bash scripts/build.sh
 ```
 
 产物在 `dist/`。容器以 root 运行，`src/toolchain`、`src/output`、`dist` 的属主会是 root，需要的话 `sudo chown -R "$USER" src dist`。
@@ -192,10 +194,10 @@ docker run --rm -v "$PWD:/work" -w /work rtlplayground-builder \
 或者直接在 Debian/Ubuntu 上装依赖：
 
 ```bash
-sudo apt install make gcc g++ bison flex libboost-dev patch bzip2 curl \
+sudo apt install make gcc g++ pkg-config bison flex libboost-dev patch bzip2 curl \
   xxd python3 libjson-c-dev zlib1g-dev git
-git clone --depth 1 https://github.com/lswymxk/RTLPlayground.git src
-MACHINES="KEEPLINK_KP_9000_6XHML_X2" bash scripts/build.sh
+git clone --depth 1 https://github.com/logicog/RTLPlayground.git src
+MACHINES="KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1" bash scripts/build.sh
 ```
 
 ---
@@ -255,7 +257,7 @@ A：公开仓库免费；私有仓库按分钟计费（免费账户每月 2000 �
 │   └── build.yml            # 手动选机型 → Artifact / Release
 ├── configs/
 │   ├── README.md            # 启动配置语法
-│   └── KEEPLINK_KP_9000_6XHML_X2.txt
+│   └── KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1.txt
 ├── scripts/
 │   └── build.sh             # 真正的编译逻辑（CI 和本地共用）
 ├── Dockerfile               # 本地复现用的编译环境
