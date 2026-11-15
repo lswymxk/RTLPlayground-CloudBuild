@@ -3,4 +3,5 @@
 *.yml    text eol=lf
 *.yaml   text eol=lf
 *.txt    text eol=lf
+*.tsv    text eol=lf
 Dockerfile text eol=lf

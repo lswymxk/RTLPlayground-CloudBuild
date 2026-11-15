@@ -1,9 +1,9 @@
 name: Build firmware
 
-run-name: Build ${{ inputs.machine }}
+run-name: Build ${{ inputs.model }} / ${{ inputs.pcb }}
 
-# 只支持手动触发：在下拉框里选一个机型，点 Run workflow，只编译这一个机型。
-# 没选中的机型不会被编译；需要别的机型就再运行一次。
+# 只支持手动触发：先选设备型号，再选 PCB 版本，点 Run workflow。
+# 同一型号可能有多种 PCB；只会编译选中的那个 machine，其它机型不会编译。
 on:
   workflow_dispatch:
     inputs:
@@ -17,87 +17,92 @@ on:
         required: true
         type: string
         default: main
-      machine:
-        description: "选择要编译的机型（对应源码 machine/<名字>.h）"
+      model:
+        description: "选择设备型号"
         required: true
         type: choice
-        default: KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1
-        # 下面 65 个机型来自当前 logicog/RTLPlayground@main 的 machine/*.h。
-        # 上游新增机型时在这里追加一行，或选 OTHER 用 custom_machine 临时编译。
+        default: "keepLiNK KP-9000-6XHML-X2"
         options:
-          - AMPCOM_WAM902_SWTG018AS
-          - BINARDAT_2G06_04210GSM
-          - DAVUAZ_DA_K6501W
-          - DEFAULT_8C_1SFP
-          - DOTX_DX_1009N
-          - FOXNEO_FNS_1200P
-          - GOALAKE_IG108
-          - GOALAKE_IG204
-          - GOODTOP_GT_ST018M
-          - GOODTOP_GT_ST024M
-          - GUANGNIANWEI_7018_2_5G
-          - HASIVO_S1100P_8GT_1SX_S
-          - HASIVO_S1100WP_8GT_1SX_SE
-          - HASIVO_S600W_4GT_2XGT_SE
-          - HISOURCE_HI_K0402WS_PCB_K0402W_V2_0
-          - HISOURCE_HI_K0402WS_PCB_K0402W_V3_0
-          - HISOURCE_HI_K0801WS
-          - HONGYAVISION_HYWS_SGT0204S
-          - HORACO_HC_SWTG124AS
-          - HORACO_HC_SWTG218AS
-          - HORACO_HC_SWTGW218AS
-          - HORACO_ZX_SG4T2
-          - HORACO_ZX_SWTGW218AS
-          - HORACO_ZX310S_4T2XH
-          - HORACO_ZX310S_4T2XT
-          - KEEPLINK_KP_9000_6XH_X
-          - KEEPLINK_KP_9000_6XH_X2_2M_PCB43_V1_1
-          - KEEPLINK_KP_9000_6XH_X2_2M_PCB43_V1_2
-          - KEEPLINK_KP_9000_6XH_X2_2M_PCB43_V2_1
-          - KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1
-          - KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_2
-          - KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V2_1
-          - KEEPLINK_KP_9000_9XH_X_EU
-          - KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V2_2
-          - KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_1
-          - KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_2
-          - KEEPLINK_KP_9000_9XHPML_X
-          - LIANGUO_HYWS_SGT0108S
-          - LIANGUO_ZX_SWTGW215AS
-          - MOKERLINK_2G040210GSM
-          - MOKERLINK_2G08110GSN
-          - MOKERLINK_POE_2G080110GS
-          - MOKERLINK_ZX_SWTGW218AS
-          - PCB_SWTG024AS_A_2_0_1
-          - PCB_SWTG024AS_V2_1_0
-          - REALHD_PSW8_25MG
-          - RUIYING_RY_4GT_2SX
-          - RUIYING_RY_8GT_1SX
-          - SIRIVISION_S25G2206FP_V1_1
-          - SIRIVISION_SR_S25G2109F
-          - SODOLA_SL_SWTGW215AS_D
-          - SODOLA_SL902_SWTGW124AS
-          - SODOLA_SL902_SWTGW215AS
-          - STEAMEMO_IG204_V1
-          - SWGT024_V2_0_MANAGED
-          - SWGT024_V2_0_UNMANAGED
-          - SWTG018AS_A_V2_0
-          - SWTG024AS_A_V2_0_1_5C_1SFP
-          - SWTG024AS_V2_0
-          - TRENDNET_TEG_S562
-          - XIKESTOR_SKS3200_8E1X
-          - XIKESTOR_SKS3200M_8GPY1XF
-          - YUANLEY_YS25_0402
-          - YUANLEY_YS25_0402M
-          - ZOERAX_HG0402XG
-          - OTHER
+          - "8+1 SFP Port Switch"
+          - "Ampcom WAM902-SWTG018AS"
+          - "Binardat 2G06-04210GSM"
+          - "Davuaz Da-K6501W"
+          - "DOTX DX-1009N"
+          - "FOXNEO FNS-1200P"
+          - "Goalake IG108"
+          - "Goalake IG204"
+          - "GoodTop GT-ST018M"
+          - "GoodTop GT-ST024M"
+          - "Guangnianwei 7018-2.5G"
+          - "Hasivo S1100P-8GT-1SX-S"
+          - "Hasivo S1100WP-8GT-1SX-SE"
+          - "Hasivo S600W-4GT-2XGT-SE"
+          - "Hisource Hi-K0402WS"
+          - "Hisource Hi-K0801WS"
+          - "Hongyavision HYWS-SGT0204S"
+          - "Horaco HC-SWTG124AS"
+          - "Horaco HC-SWTG218AS"
+          - "Horaco HC-SWTGW218AS"
+          - "Horaco ZX-SG4T2"
+          - "Horaco ZX-SWTGW218AS"
+          - "Horaco ZX310S-4T2XH"
+          - "Horaco ZX310S-4T2XT"
+          - "keepLink KP-9000-6XH-X"
+          - "keepLiNK KP-9000-6XH-X2"
+          - "keepLiNK KP-9000-6XHML-X2"
+          - "keepLink KP-9000-9XH-X-EU"
+          - "keepLiNK KP-9000-9XHML-X"
+          - "keepLiNK KP-9000-9XHPML-X"
+          - "Lianguo HYWS-SGT0108S"
+          - "Lianguo ZX-SWTGW215AS"
+          - "MokerLink 2G040210GSM"
+          - "MokerLink 2G08110GSN"
+          - "MokerLink POE-2G080110GS"
+          - "MokerLink ZX-SWTGW218AS"
+          - "PCB-SWTG024AS-A-2.0.1"
+          - "RealHD PSW8-25MG"
+          - "Ruiying RY-4GT-2SX"
+          - "Ruiying RY-8GT-1SX"
+          - "SIRIVISION S25G2206FP V1.1"
+          - "Sirivision SR-S25G2109F"
+          - "Sodola SL-SWTGW215AS-D"
+          - "Sodola SL902-SWTGW124AS"
+          - "Sodola SL902-SWTGW215AS"
+          - "Steamemo IG204 V1"
+          - "SWGT024 V2.0 Managed"
+          - "SWGT024 V2.0 Unmanaged"
+          - "SWTG018AS-A V2.0"
+          - "SWTG024AS-A-V2.0.1-5C-1SFP"
+          - "SWTG024AS-V2.0"
+          - "SWTG024AS-V2.1.0"
+          - "Trendnet TEG-S562"
+          - "XikeStor SKS3200-8E1X"
+          - "XikeStor SKS3200M-8GPY1XF"
+          - "YuanLey YS25-0402"
+          - "YuanLey YS25-0402M"
+          - "ZoeRax HG0402XG"
+      pcb:
+        description: "选择 PCB 版本；该型号只有一种 PCB 时选 AUTO（多 PCB 型号必须选具体版本）"
+        required: true
+        type: choice
+        default: "AUTO"
+        options:
+          - "AUTO"
+          - "2M_PCB23_V2_2"
+          - "2M_PCB23_V3_1"
+          - "2M_PCB23_V3_2"
+          - "2M_PCB43_V1_1"
+          - "2M_PCB43_V1_2"
+          - "2M_PCB43_V2_1"
+          - "PCB_K0402W_V2_0"
+          - "PCB_K0402W_V3_0"
       custom_machine:
-        description: "仅当上面选 OTHER 时使用：填写 machine/<名字>.h（一般留空）"
+        description: "高级：直接填 machine 文件名（会忽略上面的型号/PCB，一般留空）"
         required: false
         type: string
         default: ""
       config_file:
-        description: "自定义启动配置文件；留空则自动用 configs/<机型>.txt，再否则用源码 config.txt"
+        description: "自定义启动配置文件；留空则自动用 configs/<machine>.txt，再否则用源码 config.txt"
         required: false
         type: string
         default: ""
@@ -121,7 +126,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build ${{ inputs.machine }}
+    name: Build ${{ inputs.model }} / ${{ inputs.pcb }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
 
@@ -136,38 +141,53 @@ jobs:
           ref: ${{ inputs.source_ref }}
           path: src
 
-      # 提前校验机型，避免等 SDCC 编译完才发现名字写错
+      # 根据 型号 + PCB 在 machines.tsv 里查出 machine 文件名；提前校验，避免白等编译
       - name: Resolve machine
         id: resolve
         env:
-          IN_MACHINE: ${{ inputs.machine }}
+          IN_MODEL: ${{ inputs.model }}
+          IN_PCB: ${{ inputs.pcb }}
           IN_CUSTOM_MACHINE: ${{ inputs.custom_machine }}
         run: |
           set -euo pipefail
-          machine="$IN_MACHINE"
-          if [ "$machine" = "OTHER" ]; then
-            machine="$IN_CUSTOM_MACHINE"
-          fi
+          machine="$IN_CUSTOM_MACHINE"
           if [ -z "$machine" ]; then
-            echo "选择了 OTHER，但 custom_machine 为空" >&2
-            exit 1
+            if [ ! -f machines.tsv ]; then
+              echo "缺少 machines.tsv，请确认它和 workflow 一起上传了" >&2
+              exit 1
+            fi
+            mapfile -t rows < <(awk -F '\t' -v model="$IN_MODEL" '$0 !~ /^#/ && $2 == model {print $1 "\t" $3}' machines.tsv)
+            count="${#rows[@]}"
+            if [ "$count" -eq 0 ]; then
+              echo "machines.tsv 里没有型号：$IN_MODEL" >&2
+              exit 1
+            fi
+            if [ "$count" -eq 1 ]; then
+              machine="$(printf '%s\n' "${rows[0]}" | cut -f1)"
+              actual_pcb="$(printf '%s\n' "${rows[0]}" | cut -f2)"
+              if [ "$IN_PCB" != "AUTO" ] && [ "$IN_PCB" != "$actual_pcb" ]; then
+                echo "提示：$IN_MODEL 只有一种 PCB（$actual_pcb），已忽略所选的 $IN_PCB" >&2
+              fi
+            else
+              if [ "$IN_PCB" = "AUTO" ]; then
+                echo "型号 $IN_MODEL 有多个 PCB，请在 pcb 下拉框里选择具体版本：" >&2
+                printf '%s\n' "${rows[@]}" | cut -f2 | sed 's/^/  /' >&2
+                exit 1
+              fi
+              machine="$(printf '%s\n' "${rows[@]}" | awk -F '\t' -v pcb="$IN_PCB" '$2 == pcb {print $1; exit}')"
+              if [ -z "$machine" ]; then
+                echo "型号 $IN_MODEL 没有 PCB $IN_PCB；可选：" >&2
+                printf '%s\n' "${rows[@]}" | cut -f2 | sed 's/^/  /' >&2
+                exit 1
+              fi
+            fi
           fi
           if ! [[ "$machine" =~ ^[A-Za-z0-9_]+$ ]]; then
-            echo "非法机型名：$machine（只允许字母、数字、下划线）" >&2
+            echo "非法 machine 名：$machine" >&2
             exit 1
           fi
           if [ ! -f "src/machine/$machine.h" ] || [ ! -f "src/machine/$machine.c" ]; then
-            echo "源码里没有机型：$machine" >&2
-            echo "可用机型：" >&2
-            for header in src/machine/*.h; do
-              name="$(basename "$header" .h)"
-              case "$name" in
-                machine_defs|machine_init_defs|default_machine) continue ;;
-              esac
-              if [ -f "src/machine/$name.c" ]; then
-                echo "  $name" >&2
-              fi
-            done
+            echo "源码里没有 machine：$machine" >&2
             exit 1
           fi
           echo "machine=$machine" >> "$GITHUB_OUTPUT"
@@ -220,7 +240,9 @@ jobs:
       - name: Write job summary
         if: always()
         env:
-          MACHINE: ${{ steps.resolve.outputs.machine || inputs.machine }}
+          MODEL: ${{ inputs.model }}
+          PCB: ${{ inputs.pcb }}
+          MACHINE: ${{ steps.resolve.outputs.machine || inputs.custom_machine }}
           IN_CONFIG_FILE: ${{ inputs.config_file }}
           IN_SOURCE_REPO: ${{ inputs.source_repo }}
           IN_SOURCE_REF: ${{ inputs.source_ref }}
@@ -231,8 +253,12 @@ jobs:
             echo "| 项目 | 值 |"
             echo "| --- | --- |"
             echo "| 源码 | \`${IN_SOURCE_REPO}\` @ \`${IN_SOURCE_REF}\` |"
-            echo "| 机型 | \`${MACHINE}\` |"
-            echo "| 启动配置 | ${IN_CONFIG_FILE:-自动匹配 configs/${MACHINE}.txt 或源码 config.txt} |"
+            echo "| 型号 | \`${MODEL}\` |"
+            echo "| PCB | \`${PCB}\` |"
+            echo "| 编译目标 | \`${MACHINE:-未解析}\` |"
+            if [ -n "$MACHINE" ]; then
+              echo "| 启动配置 | ${IN_CONFIG_FILE:-自动匹配 configs/${MACHINE}.txt 或源码 config.txt} |"
+            fi
             echo ""
             if [ -f dist/build-info.txt ]; then
               echo '```'

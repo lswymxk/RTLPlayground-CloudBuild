@@ -2,7 +2,7 @@
 
 用 GitHub Actions 给 [RTLPlayground](https://github.com/logicog/RTLPlayground)（RTL8372 / RTL8373 的 2.5G 交换机固件）做云端编译：
 
-> 在页面下拉选择**一个**机型 → 点 Run workflow → 只编译这个机型 → 下载 `.bin`。
+> 先选**设备型号**，再选 **PCB 版本** → 点 Run workflow → 只编译对应的机型 → 下载 `.bin`。
 
 本仓库只包含**编译脚本和 GitHub Actions workflow**，不保存固件源码。每次运行时按 `source_repo` + `source_ref` 现场 checkout 指定版本，所以既能编上游，也能编你自己的 fork、分支或某个 commit。
 
@@ -11,7 +11,7 @@
 ## 功能
 
 - 🖱️ **纯手动触发**：没有定时任务，只有你在 Actions 页面点运行时才会编译
-- 🎯 **只编译选中的机型**：下拉框选哪个就编哪个，未选中的机型不会编译
+- 🎯 **按型号 + PCB 精确选择**：同一型号有多个 PCB 时选具体版本；只编译选中的 machine，未选中的不会编译
 - 🧰 **自动准备工具链**：下载 SDCC 4.6.0、打上项目自带的 4 个补丁、编译成 `toolchain/`，并缓存复用
 - 📦 **两种镜像一起出**：直接刷 Flash / RTLPlayground 网页升级的普通镜像，以及原厂 OEM 网页升级专用镜像
 - 🏷️ **可选发布 Release**：填一个 tag，产物自动上传到 Release，附 `SHA256SUMS`
@@ -20,14 +20,14 @@
 ## 工作流程
 
 ```
-工作流手动触发（下拉选 1 个机型 / 选版本 / 选配置）
+工作流手动触发（选型号 + PCB / 选版本 / 选配置）
         │
-        ├─ checkout 本仓库            → scripts/build.sh + configs/
+        ├─ checkout 本仓库            → scripts/build.sh + machines.tsv + configs/
         ├─ checkout 固件源码          → src/（source_repo @ source_ref）
-        ├─ 校验机型存在               → 不存在就立刻失败
+        ├─ 型号 + PCB → machine 映射   → 查 machines.tsv，查不到立刻失败
         ├─ apt 安装编译依赖
         ├─ 恢复 SDCC 工具链缓存 ──未命中──→ 下载 SDCC 4.6.0、打补丁、编译（几分钟）
-        ├─ make CI=1 MACHINE=<选中的机型> [CONFIG=<配置>]
+        ├─ make CI=1 MACHINE=<映射出的 machine> [CONFIG=<配置>]
         ├─ make -C installer          → OEM 网页升级包
         └─ dist/  →  Artifact（30 天） / Release（永久）
 ```
@@ -46,6 +46,7 @@
 
 ```
 .github/workflows/build.yml
+machines.tsv
 scripts/build.sh
 configs/...
 Dockerfile
@@ -88,13 +89,14 @@ git push -u origin main
 | --- | --- |
 | `source_repo` | `logicog/RTLPlayground`（或你自己的 fork） |
 | `source_ref` | `main`、分支名、tag 或 commit SHA |
-| `machine` | **必选**，下拉框里选一个机型 |
-| `custom_machine` | 一般留空；只有 `machine` 选 `OTHER` 时才填 |
+| `model` | **必选**，下拉选择设备型号（如 `keepLiNK KP-9000-6XHML-X2`） |
+| `pcb` | **必选**，选择 PCB 版本；该型号只有一种 PCB 时选 `AUTO`，有多个时必须选具体版本 |
+| `custom_machine` | 一般留空；高级用法：直接填 machine 文件名，会忽略上面的型号/PCB |
 | `config_file` | 一般留空；见下面「启动配置」 |
 | `build_oem` | 默认勾选，会多出一个 OEM 升级包 |
 | `release_tag` | 想发布 Release 就填如 `v0.1.0`，否则留空 |
 
-**一次运行只编译 `machine` 里选中的那一个机型。** 想编另一个机型，再运行一次即可。
+**一次运行只编译“型号 + PCB”映射出的那一个 machine。** 想编另一个型号/PCB，再运行一次即可。
 
 首次运行会从 SourceForge 下载 SDCC 并编译工具链，大约 **8–15 分钟**；之后命中缓存，通常 **2–5 分钟**。
 
@@ -104,23 +106,41 @@ git push -u origin main
 
 ---
 
-## 选择机型
+## 选择型号与 PCB（重要）
 
-`machine` 下拉框里的 65 个名字，对应源码 `machine/<名字>.h`（要求同名 `.c` 也存在），**区分大小写**。
+同一个型号在不同批次可能使用不同 PCB，**PCB 版本决定硬件布局**。请按板上的 PCB 丝印选择，
+不要只看外壳标签。项目里的 `machines.tsv` 记录了每个 machine 对应的型号和 PCB：
 
-- 设备型号与 machine 的对应关系见固件项目的 [`doc/supported_devices.md`](https://github.com/logicog/RTLPlayground/blob/main/doc/supported_devices.md)：
-  先查设备型号 / PCB 版本，再找同名 machine 定义。
-- 上游新增机型后，下拉框不会自动更新：在 `.github/workflows/build.yml` 的 `options:` 里加一行即可；
-  临时编译一个新机型也可以选 `OTHER`，然后在 `custom_machine` 里填名字。
-- 下拉列表是按 `logicog/RTLPlayground` 生成的；如果把 `source_repo` 换成别的 fork，机型名可能不同，
-  这种情况同样选 `OTHER` 手动填写。
+```
+# machine	model	pcb
+KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V2_1	keepLiNK KP-9000-6XHML-X2	2M_PCB43_V2_1
+```
+
+当前共 **58 个型号、65 个 machine**，其中 4 个型号有多个 PCB：
+
+| 型号 | 可选 PCB |
+| --- | --- |
+| keepLiNK KP-9000-6XHML-X2 | `2M_PCB43_V1_1`、`2M_PCB43_V1_2`、`2M_PCB43_V2_1` |
+| keepLiNK KP-9000-6XH-X2 | `2M_PCB43_V1_1`、`2M_PCB43_V1_2`、`2M_PCB43_V2_1` |
+| keepLiNK KP-9000-9XHML-X | `2M_PCB23_V2_2`、`2M_PCB23_V3_1`、`2M_PCB23_V3_2` |
+| Hisource Hi-K0402WS | `PCB_K0402W_V2_0`、`PCB_K0402W_V3_0` |
+
+- `pcb` 选 `AUTO`：型号只有一种 PCB 时自动使用；有多种时会报错并列出可选版本。
+- 默认型号 `keepLiNK KP-9000-6XHML-X2` 有 3 种 PCB，默认的 `AUTO` 会提示你选择；这是故意的，避免刷错。
+- 下拉框里用的是源码里的 PCB 文件名（下划线），丝印通常写作 `2M-PCB43-V2.1` 这种形式，对应关系看下面的文档。
+- 只有一种 PCB 的型号，`pcb` 保持 `AUTO` 即可；如果选了不匹配的值，会提示并忽略。
+- PCB 丝印和文档的对应关系见固件项目的 [`doc/supported_devices.md`](https://github.com/logicog/RTLPlayground/blob/main/doc/supported_devices.md)
+  以及 `doc/devices/*.md` 里的 “Machine target” 表。
+- 上游新增型号或 PCB 后，更新 `machines.tsv` 和 workflow 里的 `model` / `pcb` 下拉选项；
+  临时编译也可以直接在 `custom_machine` 里填 machine 文件名。
+- 下拉列表按 `logicog/RTLPlayground` 生成；换成别的 fork 时如果型号对不上，用 `custom_machine`。
 
 常见的两个例子（固件项目 CI 一直在编的）：
 
-| 机型 | 硬件 |
-| --- | --- |
-| `KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1` | 4 × 2.5G + 2 × SFP+ |
-| `KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_1` | 8 × 2.5G + 1 × SFP+ |
+| 型号 | PCB | 编译目标 | 硬件 |
+| --- | --- | --- | --- |
+| `keepLiNK KP-9000-6XHML-X2` | `2M_PCB43_V1_1` | `KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1` | 4 × 2.5G + 2 × SFP+ |
+| `keepLiNK KP-9000-9XHML-X` | `2M_PCB23_V3_1` | `KEEPLINK_KP_9000_9XHML_X_2M_PCB23_V3_1` | 8 × 2.5G + 1 × SFP+ |
 
 ---
 
@@ -128,7 +148,7 @@ git push -u origin main
 
 编译时可以把一份启动配置嵌进固件，设备第一次启动就生效。
 
-**自动匹配**：创建 `configs/<机型>.txt`，例如 `configs/KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1.txt`，编译该机型时会自动使用，无需改 workflow。
+**自动匹配**：创建 `configs/<machine>.txt`，其中 `<machine>` 是运行摘要/日志里“编译目标”的值（例如 `KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1`），编译对应机型时会自动使用。如果不想猜文件名，直接用下面的 `config_file` 指定更省事。
 
 **手动指定**：把 `config_file` 填成仓库里的路径（如 `configs/my-lab.txt`）。
 
@@ -204,7 +224,7 @@ MACHINES="KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1" bash scripts/build.sh
 
 ## ⚠️ 安全警告
 
-- 刷错机型可能**变砖**。刷之前务必确认设备型号、PCB 版本与 machine 定义一致。
+- 刷错型号/PCB 可能**变砖**。刷之前务必确认设备型号、PCB 丝印与 machine 定义一致。
 - 强烈建议先用 SOIC-8 夹子备份原厂 Flash，确认能救回来再动手。
 - 具体刷写步骤见固件项目 README 的第 (4)（网页升级）和 (5)（编程器直刷）节。
 - 本项目只是把固件项目的编译流程搬到 Actions，**不对固件本身和刷机后果负责**。
@@ -220,11 +240,14 @@ A：要下载并编译打了补丁的 SDCC 4.6.0，约 5–10 分钟；之后 `s
 **Q：卡在下载 SDCC / `curl` 失败？**
 A：SourceForge 偶尔不稳定，重新运行一次即可；缓存命中后不会再下载。缓存 key 与 `sdcc/` 下内容的哈希绑定，补丁变了会自动重建。
 
-**Q：报 `MACHINE='xxx' has no definition` 或 “源码里没有机型”？**
-A：机型名写错，或这个 commit 里还没有该机型。用 `ls src/machine/*.h` 核对，注意大小写和下划线。
+**Q：报 `MACHINE='xxx' has no definition` 或 “源码里没有 machine”？**
+A：`custom_machine` 里的 machine 名写错，或这个 commit 里还没有该 machine。用 `ls src/machine/*.h` 核对，注意大小写和下划线。
 
 **Q：为什么不能一次选多个机型？**
 A：GitHub Actions 的下拉框（choice）只能单选。需要多个机型就分别运行；本地用 `scripts/build.sh` 时可以一次传多个（`MACHINES="A B"`）。
+
+**Q：选了型号，但提示“有多个 PCB”？**
+A：该型号有多个 PCB 版本，`pcb` 不能选 `AUTO`。按板上 PCB 丝印从下拉框里选对应版本（见上面“选择型号与 PCB”）。
 
 **Q：发布 Release 报 `Resource not accessible by integration`？**
 A：仓库没有给 workflow 写权限。按「快速开始第 3 步」打开 **Read and write permissions**。
@@ -236,7 +259,7 @@ A：默认的 `GITHUB_TOKEN` 只能读当前仓库。私有源码需要在 workf
 A：30 天；要长期保存请发 Release。
 
 **Q：这个和固件仓库里自带的 CI 有什么区别？**
-A：自带的 `build.yml` 只做 CI 检查（编两个机型、跑单测、检查所有 machine 定义），**不上传固件**。本项目专注出可刷写的镜像，并且在页面上选机型、版本、配置。
+A：自带的 `build.yml` 只做 CI 检查（编两个机型、跑单测、检查所有 machine 定义），**不上传固件**。本项目专注出可刷写的镜像，并且在页面上选型号/PCB、版本、配置。
 
 **Q：Fork 过来 / 新仓库里 Actions 是灰的，没有 Run workflow 按钮？**
 A：新仓库一般默认启用；fork 的仓库需要先在 **Actions** 页点 “I understand my workflows, go ahead and enable them”。还要确认 workflow 文件在**默认分支**的 `.github/workflows/` 目录下。
@@ -254,7 +277,8 @@ A：公开仓库免费；私有仓库按分钟计费（免费账户每月 2000 �
 ```
 .
 ├── .github/workflows/
-│   └── build.yml            # 手动选机型 → Artifact / Release
+│   └── build.yml            # 手动选型号 + PCB → Artifact / Release
+├── machines.tsv             # 型号 / PCB → machine 映射
 ├── configs/
 │   ├── README.md            # 启动配置语法
 │   └── KEEPLINK_KP_9000_6XHML_X2_2M_PCB43_V1_1.txt
